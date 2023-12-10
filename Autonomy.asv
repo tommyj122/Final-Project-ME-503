@@ -26,6 +26,7 @@ LiDAR_FRD = processLiDAR(LidarScan);
 
 % FSM for task management, decisions, and waypoint generation
 % The FSM controls the ASV's behavior based on the current state.
+cd('C:\Users\tommy\OneDrive\College\ERAU\MSME\ME 503 Autonomous Systems\Final-Project-ME503\Functions"');
 switch data.state.current
     case 'NavigationChannel'
         % Handle navigation channel task
