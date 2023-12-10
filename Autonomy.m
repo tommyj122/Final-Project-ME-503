@@ -12,8 +12,6 @@ config.enableObstacleField = false; % Not yet implemented
 config.enableDocking = false; % Not yet implemented
 config.enableSpeedGate = false; % Not yet implemented
 config.enableReturnToHome = false; % Not yet implemented
-% This controls obstacle avoidance
-config.avoidObstacles = false; % Not yet implemented
 
 % Initialization
 % Check if data is empty and initialize if necessary.
@@ -22,7 +20,7 @@ if isempty(data)
 end
 
 % LiDAR Processing
-LiDAR_FRD = processLiDAR(LidarScan);
+LiDAR_Points = processLiDAR(state, LidarScan, data.LiDAR.mode);
 
 % FSM for task management, decisions, and waypoint generation
 % The FSM controls the ASV's behavior based on the current state.
@@ -30,50 +28,46 @@ switch data.state.current
     case 'NavigationChannel'
         % Handle navigation channel task
         if config.enableNavigationChannel
-            [actuatorCommands, data] = handleNavigationChannel(data, state);
+            data = handleNavigationChannel(data, state);
         else
             data.state.current = 'ObstacleChannel';
-            actuatorCommands = [0 0]; % Default actuator commands
         end
     case 'ObstacleChannel'
         % Handle obstacle channel task
         if config.enableObstacleChannel
-            [actuatorCommands, data] = handleObstacleChannel(data, state);
+            data = handleObstacleChannel(data, state);
         else
             data.state.current = 'ObstacleField';
-            actuatorCommands = [0 0];
         end
     case 'ObstacleField'
         % Handle obstacle field task
         if config.enableObstacleField
-            [actuatorCommands, data] = handleObstacleField(data, state);
+            data = handleObstacleField(data, state);
         else
             data.state.current = 'Docking';
-            actuatorCommands = [0 0];
         end
     case 'Docking'
         % Handle docking task
+        data.collisionAvoidance.on = false;
         if config.enableDocking
-            [actuatorCommands, data] = handleDocking(data, state);
+            data = handleDocking(data, state);
         else
             data.state.current = 'SpeedGate';
-            actuatorCommands = [0 0];
+            data.collisionAvoidance.on = true;
         end
     case 'SpeedGate'
         % Handle speed gate task
         if config.enableSpeedGate
-            [actuatorCommands, data] = handleSpeedGate(data, state);
+            data = handleSpeedGate(data, state);
         else
             data.state.current = 'ReturnToHome';
-            actuatorCommands = [0 0];
         end
     case 'ReturnToHome'
         % Handle return to home task
         if config.enableReturnToHome
-            [actuatorCommands, data] = handleReturnToHome(data, state);
+            data = handleReturnToHome(data, state);
         else
-            data.state.current = 'Complete';
-            actuatorCommands = [0 0];
+            data.state.current = 'unkown';
         end
     case 'Complete'
         % Indicate mission completion
@@ -81,11 +75,12 @@ switch data.state.current
     otherwise
         % Handle unknown state
         warning('Unknown objective');
-        actuatorCommands = [0 0];
 end
 
-% Obstacle avoidance detector and actuator commands adjustment
-if config.avoidObstacles
-    actuatorCommands = avoidObstacles(actuatorCommands, LiDAR_FRD);
-end
+% Debug waypoints
+data.navigation.waypoint = [15,17;5,5;4,20];
+
+% Follow next commanded waypoint with collision avoidance
+% followWaypoint(data, state, LiDAR_Points, steering gain, fthrust)
+[actuatorCommands, data] = followWaypoint(data, state, LiDAR_Points, 1.2, 0.4);
 end

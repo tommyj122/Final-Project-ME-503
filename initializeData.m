@@ -2,88 +2,77 @@ function data = initializeData(cameraImage, dock)
 % Initialize state variables and data structures for the Autonomy.m function.
 
 % Debugging and Logging
-data.debug = struct();
-data.debug.mode = false; % Debug mode flag
+data.debug = struct('mode', false); % Debug mode flag
 
 % State Flags
-data.state = struct();
-data.state.previous = 'safeMode'; % Previous state
-data.state.current = 'NavigationChannel'; % Current state
+data.state = struct('previous', 'safeMode', 'current', 'NavigationChannel');
 
-% Sensor Data
-data.sensor = struct();
-data.sensor.CEP = 0.120; % Circular Error Probable from GPS reading
+% Sensor Info
+data.GPS = struct('CEP', 0.120); % Circular Error Probable from GPS reading
+data.LiDAR = struct('mode', 'NED');
 
 % Waypoint and Navigation Data
-data.navigation = struct();
-data.navigation.requireLidar = false; % Flag to check if LiDAR is required
-data.navigation.requireCamera = false; % Flag to check if camera is required
-data.navigation.waypoint = []; % Current waypoint
-data.navigation.currentWaypointIdx = 1; % Index of current waypoint
-% Navigation grid setup
-data.navigation.grid = struct();
-data.navigation.grid.cellSize = 0.2; % Size of each grid cell in meters
-data.navigation.grid.northBound = [-5, 45]; % North boundary of the grid
-data.navigation.grid.eastBound = [-5, 85]; % East boundary of the grid
-% Calculate grid size based on boundaries and cell size
-data.navigation.grid.sizeN = (data.navigation.grid.northBound(2) - data.navigation.grid.northBound(1)) / data.navigation.grid.cellSize;
-data.navigation.grid.sizeE = (data.navigation.grid.eastBound(2) - data.navigation.grid.eastBound(1)) / data.navigation.grid.cellSize;
+data.navigation = struct(...
+    'waypoint', [], ...                      % Waypoints array
+    'currentWaypointIdx', 1, ...             % Index of current waypoint
+    'eTheta', [0 0], ...                     % Error in theta (yaw error)
+    'h_polygon', false, ...                  % Handle for polygon plot (if used)
+    'currentPoint', struct('XData', [], 'YData', []), ... % Struct for current point data
+    'CEP', struct('XData', [], 'YData', []));         % Struct for CEP data
 
 % Actuator Status and Control
-data.actuator = struct();
-data.actuator.fthrust = 0.4; % Forward thrust
-data.actuator.turnAmount = 0.5; % Turn amount
+data.actuator = struct('fthrust', 0.4, 'turnAmount', 0.5);
 
 % Collision Avoidance
-data.collisionAvoidance = struct();
-data.collisionAvoidance.safeDistance = 0.35; % Safe distance in meters
-data.collisionAvoidance.chosenTurnDirection = ''; % Chosen direction for avoidance maneuver
-% LiDAR sensor placement transformation
-DetectionGrid_sensor = [0, 0; 0.2, 0.55; 1.3, 0.55; 1.3, -0.55; 0.2, -0.55; 0, 0];
-trnsfLiDAR2Origin = [0.27, 0];
-data.collisionAvoidance.DetectionGrid_FRD = DetectionGrid_sensor + trnsfLiDAR2Origin;
+DetectionGrid_sensor = [0, 0; 0.2, 0.55; 1, 0.55; 1, -0.55; 0.2, -0.55; 0, 0];
+data.collisionAvoidance = struct(...
+    'on', true, ...
+    'activelyAvoiding', false, ...
+    'safeDistance', 0.35, ...
+    'turnDirection', '', ...
+    'DetectionGrid_FRD', DetectionGrid_sensor + [0.27, 0]);
 
 % Navigation Channel
-data.navChannel = struct();
 load('NavChannelYOLO', 'detector', 'info'); % Large buoy detector
-data.navChannel.detector = detector; % Object detection neural network
-data.navChannel.info = info; % Information about the detector
-% Debug mode for displaying images
-if data.debug.mode
-    figure;
-    data.navChannel.imshow = imshow(cameraImage);
-end
-data.navChannel.status = 'SEARCHING_GATE_1'; % Status of navigation channel task
-data.navChannel.gate1Waypoint = []; % Waypoint for gate 1
-data.navChannel.gate2Waypoint = []; % Waypoint for gate 2
+data.navChannel = struct(...
+    'detector', detector, ...
+    'info', info, ...
+    'status', 'SEARCHING_GATE_1', ...
+    'gate1Waypoint', [], ...
+    'gate2Waypoint', []);
 
 % Obstacle Channel
-data.obstChannel.status = 'SEARCHING'; % Status of obstacle channel task
-data.obstChannel.currentGate = 1; % Current gate being navigated
-data.obstChannel.gateWaypoints = cell(1, 15); % Waypoints for each of the 15 gates
+data.obstChannel = struct(...
+    'status', 'SEARCHING', ...
+    'currentGate', 1, ...
+    'gateWaypoints', cell(1, 15));
 
 % Obstacle Field
-data.obstField.currentState = 'SEARCHING_ENTRY'; % Current state in obstacle field task
-data.obstField.centralBuoyCircumnavigated = false; % Flag for buoy circumnavigation
-data.obstField.obstacleFieldEntered = false; % Flag for entering obstacle field
-data.obstField.openingLocation = []; % Location of opening in the obstacle field
-data.obstField.whiteBuoyLocation = []; % Location of the white buoy
-data.obstField.exitLocation = []; % Exit location from the obstacle field
+data.obstField = struct(...
+    'currentState', 'SEARCHING_ENTRY', ...
+    'centralBuoyCircumnavigated', false, ...
+    'obstacleFieldEntered', false, ...
+    'openingLocation', [], ...
+    'whiteBuoyLocation', [], ...
+    'exitLocation', []);
 
 % Docking
-data.docking.currentState = 'SEARCHING_DOCK'; % Current state in docking task
-data.docking.activeDockColor = dock; % Active dock color
-data.docking.docked = false; % Docking status
+data.docking = struct(...
+    'currentState', 'SEARCHING_DOCK', ...
+    'activeDockColor', dock, ...
+    'docked', false);
 
 % Speed Gate
-data.speedGate.currentState = 'SEARCHING_GATE_ENTRY'; % Current state in speed gate task
-data.speedGate.timerStarted = false; % Flag for timer status
-data.speedGate.markBuoyCircumnavigated = false; % Flag for mark buoy circumnavigation
+data.speedGate = struct(...
+    'currentState', 'SEARCHING_GATE_ENTRY', ...
+    'timerStarted', false, ...
+    'markBuoyCircumnavigated', false);
 
 % Return to Home
-data.returnHome.currentState = 'NAVIGATING_HOME'; % Current state in return to home task
-data.returnHome.distanceTraveled = 0; % Total distance traveled
-data.returnHome.startLocation = [0, 0]; % Replace with actual start coordinates
-data.returnHome.completionThreshold = 2; % Threshold for completion in meters
+data.returnHome = struct(...
+    'currentState', 'NAVIGATING_HOME', ...
+    'distanceTraveled', 0, ...
+    'startLocation', [0, 0], ...
+    'completionThreshold', 2);
 
 end
