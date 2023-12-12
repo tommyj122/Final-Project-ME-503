@@ -1,30 +1,39 @@
-function data = initializeData(cameraImage, dock)
+function data = initializeData(state, cameraImage, dock, debugMode)
 % Initialize state variables and data structures for the Autonomy.m function.
 
 % Debugging and Logging
-data.debug = struct('mode', false); % Debug mode flag
+if debugMode
+    data.debug.mode = true; % Debug mode flag
+    figure
+    data.debug.imshow=imshow(cameraImage);
+    data.debug.plotted_waypoints = 0;
+    data.debug.circle_handles = gobjects(0);
+end
 
 % State Flags
-data.state = struct('previous', 'safeMode', 'current', 'NavigationChannel');
+data.state = struct('current', 'NavigationChannel',...
+    'previous', '',...
+    'safeMode', false, ...
+    'searchMode', false);
 
 % Sensor Info
-data.GPS = struct('CEP', 0.120); % Circular Error Probable from GPS reading
-data.LiDAR = struct('mode', 'NED');
+data.GPS = struct('CEP', 0.25); % Circular Error Probable from GPS reading
+data.LiDAR = struct('mode', 'NED'); % NED or FRD output
 
 % Waypoint and Navigation Data
 data.navigation = struct(...
-    'waypoint', [], ...                      % Waypoints array
-    'currentWaypointIdx', 1, ...             % Index of current waypoint
+    'waypoint', [0 0], ...                      % Waypoints array
+    'startingWaypoint', [state.Pos(1);state.Pos(2)], ...
+    'waypointIdx', 1, ...             % Index of current waypoint
     'eTheta', [0 0], ...                     % Error in theta (yaw error)
-    'h_polygon', false, ...                  % Handle for polygon plot (if used)
     'currentPoint', struct('XData', [], 'YData', []), ... % Struct for current point data
     'CEP', struct('XData', [], 'YData', []));         % Struct for CEP data
 
 % Actuator Status and Control
-data.actuator = struct('fthrust', 0.4, 'turnAmount', 0.5);
+data.actuator = struct('fthrust', 0.6, 'steeringGain', 0.8);
 
 % Collision Avoidance
-DetectionGrid_sensor = [0, 0; 0.2, 0.55; 1, 0.55; 1, -0.55; 0.2, -0.55; 0, 0];
+DetectionGrid_sensor = [0, 0; 0.2, 0.55; 1.25, 0.55; 1.25, -0.55; 0.2, -0.55; 0, 0];
 data.collisionAvoidance = struct(...
     'on', true, ...
     'activelyAvoiding', false, ...
@@ -32,14 +41,23 @@ data.collisionAvoidance = struct(...
     'turnDirection', '', ...
     'DetectionGrid_FRD', DetectionGrid_sensor + [0.27, 0]);
 
-% Navigation Channel
-load('NavChannelYOLO', 'detector', 'info'); % Large buoy detector
-data.navChannel = struct(...
-    'detector', detector, ...
-    'info', info, ...
-    'status', 'SEARCHING_GATE_1', ...
-    'gate1Waypoint', [], ...
-    'gate2Waypoint', []);
+load('NavChannelYOLO','detector','info');
+data.navChannel.detector=detector;
+data.navChannel.info=info;
+
+data.navChannel.validBuoys = struct(...
+        'label', '', ...
+        'score', 0, ...
+        'bbox', [], ...
+        'distance', 0, ...
+        'timestamp', datetime('now'), ...
+        'NED', [], ...
+        'additionalInfo', struct() ... % Additional fields as required
+    );
+
+load('obstChannelYOLO','detector','info');
+data.obstChannel.detector=detector;
+data.obstChannel.info=info;
 
 % Obstacle Channel
 data.obstChannel = struct(...

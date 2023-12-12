@@ -6,17 +6,24 @@ function [actuatorCommands, data] = Autonomy(state, LidarScan, cameraImage, dock
 
 % Configuration for enabling/disabling objectives
 % These flags control which tasks are active in the FSM.
-config.enableNavigationChannel = false; % Not yet implemented
-config.enableObstacleChannel = false; % Not yet implemented
-config.enableObstacleField = false; % Not yet implemented
-config.enableDocking = false; % Not yet implemented
+debugMode = true; % Activate debug mode
+
+config.enableNavigationChannel = true; % Fully implemented, lightly tested
+
+config.enableObstacleChannel = false; % Fully implemented, lightly tested need to fix DNN
+
+config.enableObstacleField = false; % Not to be implemented
+
+config.enableDocking = false; % Work in progress
+
 config.enableSpeedGate = false; % Not yet implemented
+
 config.enableReturnToHome = false; % Not yet implemented
 
 % Initialization
 % Check if data is empty and initialize if necessary.
 if isempty(data)
-    data = initializeData(cameraImage, dock);
+    data = initializeData(state, cameraImage, dock, debugMode);
 end
 
 % LiDAR Processing
@@ -28,16 +35,18 @@ switch data.state.current
     case 'NavigationChannel'
         % Handle navigation channel task
         if config.enableNavigationChannel
-            data = handleNavigationChannel(data, state);
+            data = handleNavigationChannel(data, state, cameraImage);
         else
             data.state.current = 'ObstacleChannel';
+            data.state.previous = 'Start';
         end
     case 'ObstacleChannel'
         % Handle obstacle channel task
         if config.enableObstacleChannel
-            data = handleObstacleChannel(data, state);
+            data = handleObstacleChannel(data, state, cameraImage);
         else
             data.state.current = 'ObstacleField';
+            data.state.previous = 'NavigationChannel';
         end
     case 'ObstacleField'
         % Handle obstacle field task
@@ -45,6 +54,7 @@ switch data.state.current
             data = handleObstacleField(data, state);
         else
             data.state.current = 'Docking';
+            data.state.previous = 'ObstacleField';
         end
     case 'Docking'
         % Handle docking task
@@ -53,6 +63,7 @@ switch data.state.current
             data = handleDocking(data, state);
         else
             data.state.current = 'SpeedGate';
+            data.state.previous = 'Docking';
             data.collisionAvoidance.on = true;
         end
     case 'SpeedGate'
@@ -61,26 +72,26 @@ switch data.state.current
             data = handleSpeedGate(data, state);
         else
             data.state.current = 'ReturnToHome';
+            data.state.previous = 'SpeedGate';
         end
     case 'ReturnToHome'
         % Handle return to home task
         if config.enableReturnToHome
             data = handleReturnToHome(data, state);
         else
-            data.state.current = 'unkown';
+            data.state.current = 'Complete';
+            data.state.previous = 'ReturnToHome';
         end
     case 'Complete'
         % Indicate mission completion
         error('Mission complete');
     otherwise
-        % Handle unknown state
-        warning('Unknown objective');
+        % Handle debug state
+        warning('debug objective');
 end
-
-% Debug waypoints
-data.navigation.waypoint = [15,17;5,5;4,20];
 
 % Follow next commanded waypoint with collision avoidance
 % followWaypoint(data, state, LiDAR_Points, steering gain, fthrust)
-[actuatorCommands, data] = followWaypoint(data, state, LiDAR_Points, 1.2, 0.4);
+[actuatorCommands, data] = followWaypoint(data, state, LiDAR_Points,...
+    data.actuator.steeringGain, data.actuator.fthrust);
 end
