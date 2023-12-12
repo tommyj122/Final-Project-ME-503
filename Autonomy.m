@@ -8,17 +8,17 @@ function [actuatorCommands, data] = Autonomy(state, LidarScan, cameraImage, dock
 % These flags control which tasks are active in the FSM.
 debugMode = true; % Activate debug mode
 
-config.enableNavigationChannel = true; % Fully implemented, lightly tested
+config.enableNavigationChannel = false; % Fully implemented, lightly tested (Thomas)
 
-config.enableObstacleChannel = false; % Fully implemented, lightly tested need to fix DNN
+config.enableObstacleChannel = false; % Fully implemented, lightly tested need to fix DNN (Thomas)
 
-config.enableObstacleField = false; % Not to be implemented
+config.enableObstacleField = false; % Not to be attempted
 
-config.enableDocking = false; % Work in progress
+config.enableDocking = true; % Work in progress (Charlotte)
 
-config.enableSpeedGate = false; % Not yet implemented
+config.enableSpeedGate = false; % Not yet implemented (Thomas)
 
-config.enableReturnToHome = false; % Not yet implemented
+config.enableReturnToHome = false; % Not yet implemented (Charlotte)
 
 % Initialization
 % Check if data is empty and initialize if necessary.

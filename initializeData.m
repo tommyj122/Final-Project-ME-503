@@ -22,7 +22,7 @@ data.LiDAR = struct('mode', 'NED'); % NED or FRD output
 
 % Waypoint and Navigation Data
 data.navigation = struct(...
-    'waypoint', [0 0], ...                      % Waypoints array
+    'waypoint', [], ...                      % Waypoints array
     'startingWaypoint', [state.Pos(1);state.Pos(2)], ...
     'waypointIdx', 1, ...             % Index of current waypoint
     'eTheta', [0 0], ...                     % Error in theta (yaw error)
